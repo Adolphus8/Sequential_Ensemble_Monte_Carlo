@@ -172,7 +172,7 @@ Nsamples = 1000;
 
 markov_model = cell(6,runs);
 for rdx = 1:runs
-% Define Markov Model 1 for both k and c (Exponential model):
+% Define Exponential Markov Model 1 for both k and c:
 data_time_k = time(1:7,rdx,1); data_k = k(1:7,rdx);
 data_time_c = time(1:7,rdx,2); data_c = c(1:7,rdx);
 fitob1_k = fit(data_time_k, data_k,'exp1'); fitob1_c = fit(data_time_c, data_c,'exp1');
@@ -189,7 +189,7 @@ a1(3,rdx) = round((fitob1_k.b).*1.5,1); a2(3,rdx) = round((fitob1_c.b).*1.5,1);
 k_new1 = @(k_old) k_old.*exp(-abs(a1)) + sigma_k1.*randn(Nsamples,1); c_new1 = @(c_old) c_old.*exp(-abs(a2)) + sigma_c1.*randn(Nsamples,1); 
 markov_model{3,rdx} = @(x) [k_new1(x(:,1)), c_new1(x(:,2))];
 
-% Define Markov Model 2 for both k and c (Linear model):
+% Define Linear Markov Model for both k and c:
 fitob2_k = polyfit(data_time_k, data_k,1); fitob2_c = polyfit(data_time_c, data_c,1);
 sigma_k2 = sqrt(mean(((fitob2_k(1).*(data_time_k) + fitob2_k(2)) - data_k).^2)); sigma_k2 = round(sigma_k2,1);
 sigma_c2 = sqrt(mean(((fitob2_c(1).*(data_time_c) + fitob2_c(2)) - data_c).^2)); sigma_c2 = round(sigma_c2,2);
