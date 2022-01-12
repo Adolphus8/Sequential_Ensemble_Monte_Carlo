@@ -1,5 +1,5 @@
 # Sequential Ensemble Monte Carlo sampler
-This repository presents a collection of tutorials (written in MATLAB) which seeks to demonstrate the implementation of the Sequential Ensemble Monte Carlo (SEMC) based on the literature by [Lye et. al (2022)](). Currently, 2 sets tutorials are presented here aimed at allowing users who are new such sampler find their footing around its concept and its workings. The details to these tutorials are as follows:
+This repository presents a collection of tutorials (written in MATLAB) which seeks to demonstrate the implementation of the Sequential Ensemble Monte Carlo (SEMC) based on the literature by [Lye et. al (2022)](). Currently, 2 sets tutorials are presented here aimed at allowing users who are new such sampler find their footing around its concept and implementation. The details to these tutorials are as follows:
 
 ## Tutorials:
 
