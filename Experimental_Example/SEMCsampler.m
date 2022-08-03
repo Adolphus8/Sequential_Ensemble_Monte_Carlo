@@ -21,10 +21,11 @@ function [output] = SEMCsampler(varargin)
 
 % Parse the information in the name/value pairs: 
 pnames = {'nsamples','loglikelihoods','dynamic_model',...
-          'priorpdf','priorrnd','burnin','lastburnin','stepsize','thinchain'};
+          'priorpdf','priorrnd','burnin','lastburnin',...
+          'stepsize','thinchain'};
 
 % Define default values:      
-dflts =  {[], [], @(x) x, [], [], 0, 0, 2, 3}; 
+dflts =  {[], [], @(x) x, [], [], 0, 0, 30, 3}; 
 
 [nsamples,loglikelihoods,dynamic_model,priorpdf,prior_rnd,...
  burnin,lastBurnin,stepsize,thinchain] = internal.stats.parseArgs(pnames, dflts, varargin{:});
@@ -56,9 +57,9 @@ dflts =  {[], [], @(x) x, [], [], 0, 0, 2, 3};
 
 %% Number of cores
 if ~isempty(gcp('nocreate'))
-    pool = gcp;
-    Ncores = pool.NumWorkers;
-    fprintf('SEMC is running on %d cores.\n', Ncores);
+pool = gcp;
+Ncores = pool.NumWorkers;
+fprintf('SEMC is running on %d cores.\n', Ncores);
 end
 
 %% Initialize: Obtain N samples from the Prior PDF
@@ -69,6 +70,8 @@ count = 1; % Initiate counter
 prior_initial = priorpdf;     % Define initial Prior PDF
 thetaj = prior_rnd(nsamples); % theta0 = N x dim
 Dimensions = size(thetaj, 2); % Dimensionality of theta, dim
+
+target_accept = ((0.21./Dimensions) + 0.23);
 
 % Initialization of matrices and vectors:
 thetaj1  = zeros(nsamples, Dimensions);           % Initiate empty array for samples
@@ -88,8 +91,7 @@ predictive_samples = zeros(size(thetaj,1), size(thetaj,2), size(loglikelihoods,1
 
 % Resampling indicator vector:
 indicator = zeros(length(loglikelihoods), 1);
-% Note: This indicator vector returns a 1 for the iteration(s) where
-% resampling is initiated and 0 otherwise.
+% Note: This indicator vector returns a 1 for the iteration(s) where resampling is initiated and 0 otherwise.
 
 %% Main sampling loop
 for iter = 1:length(loglikelihoods)
@@ -100,7 +102,7 @@ loglikelihood = loglikelihoods{iter};
 
 % Compute loglikelihood values for each sample:
 logL = zeros(nsamples,1);
-parfor l = 1:nsamples
+for l = 1:nsamples
 logL(l) = loglikelihood(thetaj(l,:));
 end
 
@@ -118,14 +120,8 @@ wj = exp(logL);
 % To compute the log evidence for the current iteration:
 log_evidence(iter+1) = log(mean(wj)) + log_evidence(iter);
 
-% Check step for wj:
-for i = 1:nsamples
-if wj(i) == 0
-wj(i) = 1e-100;
-end
-end
-
-wj_norm = wj./sum(wj); % To normalise the weights
+% To normalise the weights:
+wj_norm = wj./sum(wj); 
 
 %% Check step - Compute the sum of wj_norm and see if it is < nsamples/2:
 
@@ -148,7 +144,6 @@ end
 thetaj = thetaj_resampled;
 wj_norm = (1/nsamples).*ones(nsamples,1);
 indicator(iter) = 1;
-
 end
 
 %% Update the samples according to the current Posterior using EMCMC sampler:
@@ -161,27 +156,106 @@ burnin = lastBurnin;
 end
 
 % Start nsamples different Markov chains:
-fprintf('Markov chains ...\n\n');
 idx = randsample(nsamples, nsamples, true, wj_norm);
 
 % Define the starting samples of each of the nsamples markov chains:
+fprintf('Markov chains ...\n\n');
 start = zeros(nsamples, Dimensions);
 for i = 1:nsamples
 start(i,:) = thetaj(idx(i), :);
 end
 
 % Initiate the EMCMC sampler (nsamples x dim x 1):
-[samples,logp,acceptance_rate] = EMCMCsampler(start, log_posterior, 1, prior_initial, ...
-                                             'StepSize', stepsize,...
-                                             'BurnIn', burnin,...
-                                             'ThinChain', thinchain,...
-                                             'Parallel', true); 
+[samples,~,acceptance_rate_nom] = EMCMCsampler(start, log_posterior, 1, prior_initial, ...
+                                     'StepSize', stepsize, 'BurnIn', burnin, ...
+                                     'ThinChain', thinchain, 'Parallel', false); 
+acc_nom_ini = []; acc_nom_ini(1) = acceptance_rate_nom; % Nominal acceptance rate value
+step_size_trial = stepsize;
 samples_nominal = permute(samples, [2 1 3]);
 
 % To compress thetaj1 into a nsamples x dim vector:
 thetaj1 = samples_nominal(:,:)';
 
-acceptance(count) = acceptance_rate; % To store the acceptance rate values
+%% Conditional loop for step-size tuning given a target acceptance rate (Virtual iterations):
+
+log_posterior_virtual = @(x) log_posterior(x);
+
+for tc = 1:Inf
+    
+d_a(tc) = (acc_nom_ini(tc) - target_accept); 
+
+if tc == 1 
+c_a(tc) = d_a(tc);
+else
+c_a(tc) = d_a(tc) - d_a(tc-1);
+end
+
+delt = abs(c_a(tc));
+fprintf('Commence tuning step = %2d \n', tc); fprintf('Acceptance diff = %2f \n', c_a(tc));
+if delt <= 0.1.*target_accept % Define the termination criteria
+break;                        % End the loop once the termination criteria is met for the "virtual" iterations
+else
+% Compute loglikelihood values for each sample:
+logL = zeros(nsamples,1);
+for l = 1:nsamples
+logL(l) = loglikelihood(thetaj(l,:));
+end
+% Error check:
+if any(isinf(logL))
+error('The prior distribution is too far from the true region');
+end
+
+wj = exp(logL);        
+wj_norm = wj./sum(wj); 
+
+% Check step - Compute the sum of wj_norm and see if it is < nsamples/2:
+Neff = 1/(sum(wj_norm.^2));
+threshold = nsamples/2;
+
+% Resampling step (conditional if Neff < threshold):
+if Neff < threshold
+fprintf('Resampling step initiated ... \n');   
+dx = randsample(nsamples, nsamples, true, wj_norm);
+
+thetaj_resampled = zeros(nsamples, Dimensions);
+for d = 1:nsamples
+thetaj_resampled(d,:) = thetaj(dx(d),:); 
+end
+thetaj = thetaj_resampled;
+wj_norm = (1/nsamples).*ones(nsamples,1);
+end    
+    
+stepsize_nominal = step_size_trial.*exp(d_a(tc));
+if stepsize_nominal <= 1
+ step = 1.01;
+else
+ step = stepsize_nominal;
+end    
+
+% Start nsamples different Markov chains:
+idx = randsample(nsamples, nsamples, true, wj_norm);
+% Define the starting samples of each of the nsamples markov chains:
+start = zeros(nsamples, Dimensions);
+for i = 1:nsamples
+start(i,:) = thetaj(idx(i), :);
+end
+
+[samples,~,acceptance_rate_vir] = EMCMCsampler(start, log_posterior_virtual, 1, prior_initial, ...
+                                     'StepSize', step, 'BurnIn', burnin, ...
+                                     'ThinChain', thinchain, 'Parallel', false); 
+acc_nom_ini(tc+1) = acceptance_rate_vir;
+samples_nominal = permute(samples, [2 1 3]);
+thetaj1 = samples_nominal(:,:)';
+end
+log_posterior_virtual = @(x) log_posterior_virtual(x) + loglikelihood(x); 
+
+end % End of Virtual iterations
+tune_count(iter) = tc;
+%if iter == 1
+acceptance(count) = acc_nom_ini(end); % To store the acceptance rate values
+%else
+%acceptance(count) = acceptance_rate_nom;
+%end
 
 %% Prediction step: 
 
@@ -199,15 +273,13 @@ end
 pred_pdf = @(x) mvksdensity(pred_samps, x, 'Bandwidth', bw);
 
 %% Prepare for the next iteration:
-
-c_a = (acceptance_rate - ((0.21./Dimensions) + 0.23));
-stepsize_nominal = stepsize.*exp(c_a);
-
+c_a = (acceptance(count) - target_accept); 
+stepsize_nominal = step_size_trial.*exp(c_a);
 if stepsize_nominal <= 1
 stepsize = 1.01;
 else
 stepsize = stepsize_nominal;
-end
+end  
     
 count = count+1;
 allsamples(:,:,count) = thetaj1;
@@ -225,7 +297,8 @@ output.prediction = predictive_samples; % To only show all prediction samples ac
 output.acceptance = acceptance;         % To show the mean acceptance rates for all iterations
 output.log_evidence = log_evidence;     % To show the (M+1) x 1 vector of the logarithmic of the evidence;
 output.step = step;                     % To show the values of step-size
-output.indicator = indicator;           % To indicate the iterations whereby resampling took place (denoted by 1s).
+output.indicator = indicator;           % To indicate the iterations whereby resampling took place (denoted by 1s)
+output.tune_count = tune_count;         % To indicate the no. of tuning
 
 fprintf('End of SEMC procedure. \n\n');
 

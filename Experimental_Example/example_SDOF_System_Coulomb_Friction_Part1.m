@@ -59,23 +59,24 @@ set(gca,'FontSize',20);
 % {Coulomb Force, Natural Frequency, Frequency Ratio Noise, Phase Angle Noise}
 
 % Define the Prior distribution:
-lowerbound = [0.01, 0.001, 0.001]; upperbound = [100, 10, 1];
+lowerbound = [0.01, 0.01, 0.001, 0.001]; upperbound = [5, 30, 5, 1];
 prior_coulomb = @(x) unifpdf(x, lowerbound(1), upperbound(1));   % Prior for Coulomb Friction
-prior_omega = @(x) unifpdf(x, lowerbound(1), upperbound(1));     % Prior for Natural Frequency
-prior_sigma_phi = @(x) unifpdf(x, lowerbound(2), upperbound(2)); % Prior for Phase Angle Noise
-prior_sigma_r = @(x) unifpdf(x, lowerbound(3), upperbound(3));   % Prior for Frequency Ratio Noise
+prior_omega = @(x) unifpdf(x, lowerbound(2), upperbound(2));     % Prior for Natural Frequency
+prior_sigma_phi = @(x) unifpdf(x, lowerbound(3), upperbound(3)); % Prior for Phase Angle Noise
+prior_sigma_r = @(x) unifpdf(x, lowerbound(4), upperbound(4));   % Prior for Frequency Ratio Noise
 
 prior_pdf = @(x) prior_coulomb(x(:,1)) .* prior_omega(x(:,2)) .* ...
                  prior_sigma_phi(x(:,3)) .* prior_sigma_r(x(:,4));
 prior_rnd = @(N) [unifrnd(lowerbound(1), upperbound(1), N, 1), ...
-                  unifrnd(lowerbound(1), upperbound(1), N, 1), ...
                   unifrnd(lowerbound(2), upperbound(2), N, 1), ...
-                  unifrnd(lowerbound(3), upperbound(3), N, 1)];          
+                  unifrnd(lowerbound(3), upperbound(3), N, 1), ...
+                  unifrnd(lowerbound(4), upperbound(4), N, 1)];          
 
 % Define the loglikelihood function:
 model = @(x, r_exp) blackbox_model(x, r_exp, driving_force);
 
 data_frequency = r_exp .* omega_n;       % Experimental driving requency in [rad/s]
+
 loglike = @(x,t) loglikelihood(x, model, phi_exp(:,t), data_frequency(:,t), r_exp(:,t), r_nom);
 
 time_step = size(coulomb_force,1);
@@ -135,11 +136,22 @@ dynamic_model_1 = @(x) [F_new_1(x(:,1)), omega_new(x(:,2)), ...
 tic;
 SEMC1 = SEMCsampler('nsamples',Nsamples,'loglikelihoods',logL,...
                    'dynamic_model',dynamic_model_1,'priorpdf',prior_pdf,...
-                   'priorrnd',prior_rnd,'burnin',0,'stepsize',30);
+                   'priorrnd',prior_rnd);
 semc_allsamples1 = SEMC1.allsamples;
-SEMC1.acceptance;
+SEMC1.acceptance
 timeSEMC1 = toc;
 fprintf('Time elapsed is for the SEMC sampler: %f \n',timeSEMC1)
+
+% Start SMC sampler:
+tic;
+SMC1 = SMCsampler('nsamples',Nsamples,'loglikelihoods',logL,...
+                   'dynamic_model',dynamic_model_1,'priorpdf',prior_pdf,...
+                   'priorrnd',prior_rnd,'burnin',0);
+smc_allsamples1 = SMC1.allsamples;
+timeSMC1 = toc;
+fprintf('Time elapsed is for the SMC sampler: %f \n',timeSMC1)
+
+save('experimental_SDOF_System_Coulomb_Friction_1a_m');
 
 %% Perform Online Sequential Bayesian Updating via SEMC (with Dynamical Model 2):
 
@@ -159,12 +171,21 @@ dynamic_model_2 = @(x) [F_new_2(x(:,1)), omega_new(x(:,2)), ...
 tic;
 SEMC2 = SEMCsampler('nsamples',Nsamples,'loglikelihoods',logL,...
                    'dynamic_model',dynamic_model_2,'priorpdf',prior_pdf,...
-                   'priorrnd',prior_rnd,'burnin',0,'stepsize',30);
+                   'priorrnd',prior_rnd);
 semc_allsamples2 = SEMC2.allsamples;
-SEMC2.acceptance;
+SEMC2.acceptance
 timeSEMC2 = toc;
 fprintf('Time elapsed is for the SEMC sampler: %f \n',timeSEMC2)
 
-%% Save Data:
+% Start SMC sampler:
+tic;
+SMC2 = SMCsampler('nsamples',Nsamples,'loglikelihoods',logL,...
+                   'dynamic_model',dynamic_model_2,'priorpdf',prior_pdf,...
+                   'priorrnd',prior_rnd,'burnin',0);
+smc_allsamples2 = SMC2.allsamples;
+timeSMC2 = toc;
+fprintf('Time elapsed is for the SMC sampler: %f \n',timeSMC2)
 
-save('experimental_SDOF_System_Coulomb_Friction_Part1_m');
+save('experimental_SDOF_System_Coulomb_Friction_1b_m');
+
+save('Trial2', 'SEMC1', 'SEMC2')
