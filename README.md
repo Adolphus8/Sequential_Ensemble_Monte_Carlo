@@ -18,8 +18,8 @@ In this example, the proposed SEMC sampler is used to infer the time-varying Cou
 Note: Run "example_SDOF_System_Coulomb_Friction_Part1.m" followed by "example_SDOF_System_Coulomb_Friction_Part2.m"
 
 ## Reference(s):
-* A. Lye, A. Cicirello, and E. Patelli (2022). On-line Bayesian Inference for Structural Health Monitoring using Sequential Ensemble Monte Carlo Sampler. *In Proceedings of the 13th International Conference on Structural Safety and Reliability, 1*, 816-832. doi: 
-* A. Lye, A. Cicirello, and E. Patelli (2022). Sequential Ensemble Monte Carlo sampler for On-line Bayesian inference of Time-varying parameters in Engineering Applications. *Journal of Structural Engineering, 133*(7), 816-832. doi: 
+* A. Lye, L. Marino, A. Cicirello, and E. Patelli (2022). Sequential Ensemble Monte Carlo Sampler for On-line Bayesian inference of Time-varying Parameter in Engineering Applications. *ASCE-ASME Journal of Risk and Uncertainty in Engineering Systems Part B: Mechanical Engineering*, 1–13, doi: [10.1115/1.4056934](https://asmedigitalcollection.asme.org/risk/article-abstract/doi/10.1115/1.4056934/1159641/Sequential-Ensemble-Monte-Carlo-Sampler-for-On?redirectedFrom=fulltext)
+* A. Lye, A. Cicirello, and E. Patelli (2022). On-line Bayesian Inference for Structural Health Monitoring using Sequential Ensemble Monte Carlo Sampler. *In Proceedings of the 13th International Conference on Structural Safety and Reliability, 1*. (Accepted) 
 
 ## Author:
 * Name: Adolphus Lye
