@@ -19,7 +19,7 @@ Note: Run "example_SDOF_System_Coulomb_Friction_Part1.m" followed by "example_SD
 
 ## Reference(s):
 * A. Lye, L. Marino, A. Cicirello, and E. Patelli (2022). Sequential Ensemble Monte Carlo Sampler for On-line Bayesian inference of Time-varying Parameter in Engineering Applications. *ASCE-ASME Journal of Risk and Uncertainty in Engineering Systems Part B: Mechanical Engineering*, 1–13, doi: [10.1115/1.4056934](https://asmedigitalcollection.asme.org/risk/article-abstract/doi/10.1115/1.4056934/1159641/Sequential-Ensemble-Monte-Carlo-Sampler-for-On?redirectedFrom=fulltext)
-* A. Lye, A. Cicirello, and E. Patelli (2022). On-line Bayesian Inference for Structural Health Monitoring using Sequential Ensemble Monte Carlo Sampler. *In Proceedings of the 13th International Conference on Structural Safety and Reliability, 1*. (Accepted) 
+* A. Lye, A. Cicirello, and E. Patelli (2022). On-line Bayesian Inference for Structural Health Monitoring using Sequential Ensemble Monte Carlo Sampler. *In Proceedings of the 13th International Conference on Structural Safety and Reliability, 1*.
 
 ## Author:
 * Name: Adolphus Lye
